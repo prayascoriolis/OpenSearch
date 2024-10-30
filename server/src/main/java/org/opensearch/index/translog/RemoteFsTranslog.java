@@ -227,13 +227,13 @@ public class RemoteFsTranslog extends Translog {
         throw ex;
     }
 
-    private static void downloadOnce(TranslogTransferManager translogTransferManager, Path location, Logger logger, boolean seedRemote)
+    private static void downloadOnce(TranslogTransferManager translogTransferManager, Path location, Logger logger, boolean seedRemote, long timestamp)
         throws IOException {
         logger.debug("Downloading translog files from remote");
         RemoteTranslogTransferTracker statsTracker = translogTransferManager.getRemoteTranslogTransferTracker();
         long prevDownloadBytesSucceeded = statsTracker.getDownloadBytesSucceeded();
         long prevDownloadTimeInMillis = statsTracker.getTotalDownloadTimeInMillis();
-        TranslogTransferMetadata translogMetadata = translogTransferManager.readMetadata();
+        TranslogTransferMetadata translogMetadata = translogTransferManager.readMetadata(timestamp);
         if (translogMetadata != null) {
             if (Files.notExists(location)) {
                 Files.createDirectories(location);
@@ -245,10 +245,34 @@ public class RemoteFsTranslog extends Translog {
             }
 
             Map<String, String> generationToPrimaryTermMapper = translogMetadata.getGenerationToPrimaryTermMapper();
+            List<CompletableFuture<Void>> downloadFutures = new ArrayList<>();
+            ThreadPool threadPool = translogTransferManager.getThreadPool();
+            ExecutorService executor = threadPool.executor(ThreadPool.Names.TRANSLOG_TRANSFER);
+
+            // Submit concurrent download tasks
             for (long i = translogMetadata.getGeneration(); i >= translogMetadata.getMinTranslogGeneration(); i--) {
                 String generation = Long.toString(i);
-                translogTransferManager.downloadTranslog(generationToPrimaryTermMapper.get(generation), generation, location);
+                String primaryTerm = generationToPrimaryTermMapper.get(generation);
+                CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+                    try {
+                        translogTransferManager.downloadTranslog(primaryTerm, generation, location);
+                    } catch (IOException e) {
+                        throw new CompletionException(e);
+                    }
+                }, executor);
+                downloadFutures.add(future);
             }
+
+            // Wait for all downloads to complete
+            try {
+                CompletableFuture.allOf(downloadFutures.toArray(new CompletableFuture[0])).join();
+            } catch (CompletionException e) {
+                if (e.getCause() instanceof IOException) {
+                    throw (IOException) e.getCause();
+                }
+                throw e;
+            }
+
             logger.info(
                 "Downloaded translog and checkpoint files from={} to={}",
                 translogMetadata.getMinTranslogGeneration(),
