@@ -235,6 +235,16 @@ public class ThreadPool implements ReportingService<ThreadPoolInfo>, Scheduler {
         Setting.Property.NodeScope
     );
 
+    public static final Setting<Integer> TRANSLOG_TRANSFER_THREAD_MIN = Setting.intSetting(
+        "thread_pool.translog_transfer.min", 1, 1, Setting.Property.NodeScope);
+
+    public static final Setting<Integer> TRANSLOG_TRANSFER_THREAD_MAX = Setting.intSetting(
+        "thread_pool.translog_transfer.max", halfAllocatedProcessors(OpenSearchExecutors.allocatedProcessors(Settings.EMPTY)),
+        1, Setting.Property.NodeScope);
+
+    public static final Setting<TimeValue> TRANSLOG_TRANSFER_KEEP_ALIVE = Setting.timeSetting(
+        "thread_pool.translog_transfer.keep_alive", TimeValue.timeValueMinutes(5), Setting.Property.NodeScope);
+
     public ThreadPool(final Settings settings, final ExecutorBuilder<?>... customBuilders) {
         this(settings, null, customBuilders);
     }
@@ -287,7 +297,12 @@ public class ThreadPool implements ReportingService<ThreadPoolInfo>, Scheduler {
         builders.put(Names.SYSTEM_WRITE, new FixedExecutorBuilder(settings, Names.SYSTEM_WRITE, halfProcMaxAt5, 1000, false));
         builders.put(
             Names.TRANSLOG_TRANSFER,
-            new ScalingExecutorBuilder(Names.TRANSLOG_TRANSFER, 1, halfProc, TimeValue.timeValueMinutes(5))
+            new ScalingExecutorBuilder(
+                Names.TRANSLOG_TRANSFER,
+                TRANSLOG_TRANSFER_THREAD_MIN.get(settings),
+                TRANSLOG_TRANSFER_THREAD_MAX.get(settings),
+                TRANSLOG_TRANSFER_KEEP_ALIVE.get(settings)
+            )
         );
         builders.put(Names.TRANSLOG_SYNC, new FixedExecutorBuilder(settings, Names.TRANSLOG_SYNC, allocatedProcessors * 4, 10000));
         builders.put(Names.REMOTE_PURGE, new ScalingExecutorBuilder(Names.REMOTE_PURGE, 1, halfProc, TimeValue.timeValueMinutes(5)));

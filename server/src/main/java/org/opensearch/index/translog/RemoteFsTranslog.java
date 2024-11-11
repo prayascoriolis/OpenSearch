@@ -39,11 +39,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.util.HashSet;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -260,10 +259,34 @@ public class RemoteFsTranslog extends Translog {
             }
 
             Map<String, String> generationToPrimaryTermMapper = translogMetadata.getGenerationToPrimaryTermMapper();
+            List<CompletableFuture<Void>> downloadFutures = new ArrayList<>();
+            // Create a thread pool for concurrent download of translog files
+            ThreadPool threadPool = translogTransferManager.getThreadPool();
+            // ExecutorService in OpenSearch manages thread pools for executing tasks asynchronously.
+            ExecutorService executor = threadPool.executor(ThreadPool.Names.TRANSLOG_TRANSFER);
+            // Submit Concurrent download tasks
             for (long i = translogMetadata.getGeneration(); i >= translogMetadata.getMinTranslogGeneration(); i--) {
                 String generation = Long.toString(i);
-                translogTransferManager.downloadTranslog(generationToPrimaryTermMapper.get(generation), generation, location);
+                String primaryTerm = generationToPrimaryTermMapper.get(generation);
+                CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+                    try {
+                        translogTransferManager.downloadTranslog(primaryTerm, generation, location);
+                    } catch (IOException e) {
+                        throw new CompletionException(e);
+                    }
+                }, executor);
+                downloadFutures.add(future);
             }
+            // Wait for all downloads to complete
+            try {
+                CompletableFuture.allOf(downloadFutures.toArray(new CompletableFuture[0])).join();
+            } catch (CompletionException e) {
+                if (e.getCause() instanceof IOException) {
+                    throw (IOException) e.getCause();
+                }
+            throw e;
+            }
+
             logger.info(
                 "Downloaded translog and checkpoint files from={} to={}",
                 translogMetadata.getMinTranslogGeneration(),
@@ -340,6 +363,7 @@ public class RemoteFsTranslog extends Translog {
         BlobStoreTransferService transferService = new BlobStoreTransferService(blobStoreRepository.blobStore(), threadPool);
         return new TranslogTransferManager(
             shardId,
+            threadPool,
             transferService,
             dataPath,
             mdPath,

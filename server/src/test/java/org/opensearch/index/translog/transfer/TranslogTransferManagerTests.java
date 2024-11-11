@@ -112,6 +112,7 @@ public class TranslogTransferManagerTests extends OpenSearchTestCase {
         isTranslogMetadataEnabled = false;
         translogTransferManager = new TranslogTransferManager(
             shardId,
+            threadPool,
             transferService,
             remoteBaseTransferPath.add(TRANSLOG.getName()),
             remoteBaseTransferPath.add(METADATA.getName()),
@@ -179,6 +180,7 @@ public class TranslogTransferManagerTests extends OpenSearchTestCase {
 
         TranslogTransferManager translogTransferManager = new TranslogTransferManager(
             shardId,
+            threadPool,
             transferService,
             remoteBaseTransferPath.add(TRANSLOG.getName()),
             remoteBaseTransferPath.add(METADATA.getName()),
@@ -232,6 +234,7 @@ public class TranslogTransferManagerTests extends OpenSearchTestCase {
         when(remoteStoreSettings.getClusterRemoteTranslogTransferTimeout()).thenReturn(new TimeValue(1));
         TranslogTransferManager translogTransferManager = new TranslogTransferManager(
             shardId,
+            threadPool,
             transferService,
             remoteBaseTransferPath.add(TRANSLOG.getName()),
             remoteBaseTransferPath.add(METADATA.getName()),
@@ -276,6 +279,7 @@ public class TranslogTransferManagerTests extends OpenSearchTestCase {
         );
         TranslogTransferManager translogTransferManager = new TranslogTransferManager(
             shardId,
+            threadPool,
             transferService,
             remoteBaseTransferPath.add(TRANSLOG.getName()),
             remoteBaseTransferPath.add(METADATA.getName()),
@@ -516,6 +520,7 @@ public class TranslogTransferManagerTests extends OpenSearchTestCase {
         BlobStoreTransferService blobStoreTransferService = new BlobStoreTransferService(blobStore, threadPool);
         TranslogTransferManager translogTransferManager = new TranslogTransferManager(
             shardId,
+            threadPool,
             blobStoreTransferService,
             remoteBaseTransferPath.add(TRANSLOG.getName()),
             remoteBaseTransferPath.add(METADATA.getName()),
@@ -582,6 +587,7 @@ public class TranslogTransferManagerTests extends OpenSearchTestCase {
         BlobStoreTransferService blobStoreTransferService = new BlobStoreTransferService(blobStore, threadPool);
         TranslogTransferManager translogTransferManager = new TranslogTransferManager(
             shardId,
+            threadPool,
             blobStoreTransferService,
             remoteBaseTransferPath.add(TRANSLOG.getName()),
             remoteBaseTransferPath.add(METADATA.getName()),
@@ -691,6 +697,7 @@ public class TranslogTransferManagerTests extends OpenSearchTestCase {
 
         translogTransferManager = new TranslogTransferManager(
             shardId,
+            threadPool,
             transferService,
             remoteBaseTransferPath.add(TRANSLOG.getName()),
             remoteBaseTransferPath.add(METADATA.getName()),
@@ -722,6 +729,7 @@ public class TranslogTransferManagerTests extends OpenSearchTestCase {
         isTranslogMetadataEnabled = true;
         translogTransferManager = new TranslogTransferManager(
             shardId,
+            threadPool,
             transferService,
             remoteBaseTransferPath.add(TRANSLOG.getName()),
             remoteBaseTransferPath.add(METADATA.getName()),
@@ -904,6 +912,7 @@ public class TranslogTransferManagerTests extends OpenSearchTestCase {
     public void testPopulateFileTrackerWithLocalStateNoCkpAsMetadata() {
         TranslogTransferManager translogTransferManager = new TranslogTransferManager(
             shardId,
+            threadPool,
             transferService,
             remoteBaseTransferPath.add(TRANSLOG.getName()),
             remoteBaseTransferPath.add(METADATA.getName()),

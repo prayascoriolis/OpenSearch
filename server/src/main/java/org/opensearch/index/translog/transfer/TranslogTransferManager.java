@@ -61,6 +61,7 @@ import static org.opensearch.index.translog.transfer.TranslogTransferMetadata.ME
 public class TranslogTransferManager {
 
     private final ShardId shardId;
+    private final ThreadPool threadPool;
     private final TransferService transferService;
     private final BlobPath remoteDataTransferPath;
     private final BlobPath remoteMetadataTransferPath;
@@ -82,6 +83,7 @@ public class TranslogTransferManager {
 
     public TranslogTransferManager(
         ShardId shardId,
+        ThreadPool threadPool,
         TransferService transferService,
         BlobPath remoteDataTransferPath,
         BlobPath remoteMetadataTransferPath,
@@ -91,6 +93,7 @@ public class TranslogTransferManager {
         boolean isTranslogMetadataEnabled
     ) {
         this.shardId = shardId;
+        this.threadPool = threadPool;
         this.transferService = transferService;
         this.remoteDataTransferPath = remoteDataTransferPath;
         this.remoteMetadataTransferPath = remoteMetadataTransferPath;
@@ -107,6 +110,9 @@ public class TranslogTransferManager {
 
     public ShardId getShardId() {
         return this.shardId;
+    }
+    public ThreadPool getThreadPool() {
+        return this.threadPool;
     }
 
     public boolean transferSnapshot(TransferSnapshot transferSnapshot, TranslogTransferListener translogTransferListener)
